@@ -1,0 +1,24 @@
+# Local files
+.DS_Store
+*.log
+
+# Generated data and output
+data/pulled/
+data/generated/
+output/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Quarto
+.quarto
+/.vscode
+/.quarto/
+
+
+
+# output folder
+output/
