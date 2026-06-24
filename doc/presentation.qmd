@@ -1,7 +1,7 @@
 ---
-title: "Assignment 2: Word Count of 10-K Filings over Time"
+title: "Investor Attention and the Post-10-K Drift"
 subtitle: "RCT Summer 2026"
-author: "Fikir Worku Edossa"
+author: "Team Project"
 institute: "Humboldt-Universität zu Berlin"
 date: last-modified
 date-format: long
@@ -23,70 +23,154 @@ header-includes:
 
 ```{python}
 #| include: false
-
 import pickle
-import sys
 from pathlib import Path
 
-sys.path.insert(0, "../code/python")
-from run_analysis import make_length_figure
-from plotnine import theme, theme_minimal
+with Path("../output/analysis_results.pkl").open("rb") as f:
+    R = pickle.load(f)
 
-results_path = Path("../output/results.pkl")
-with results_path.open("rb") as results_file:
-    results = pickle.load(results_file)
+uni = R["univariate"]
+full = R["full_controls"]
+quint = R["quintiles"]
+att = R["attention"]
+intr = att["interaction"]["table"]
+lo = att["low_attention"]
+hi = att["high_attention"]
 
-annual_data = results["annual_data"]
-highlights = results["highlights"]
+
+def cell(tab, var, what):
+    return tab.loc[var, what]
 ```
 
-## Research Question
+## Motivation & Research Question
 
-- Do 10-K filings continue to grow longer over time?
-- Replicates @DLS2017 using the EDGAR 10-K dataset
-- Extends their sample period (1996–2013) to `{python} highlights["year_range"].split("–")[1]`
+- At filing, most 10-K headline numbers are already public — many investors
+  treat the 10-K as a formality.
+- Yet @YouZhang2009 show prices keep drifting for months after the filing:
+  investors **underreact** to 10-K information.
+- They explain this from the **supply side**: the information is complex and
+  slow to process.
 
-## Data
+\vskip 0.3em
+**Our question:** Is the 12-month drift after a 10-K filing larger for filings
+that receive **low investor attention** around the filing date?
+
+## Our Angle: the Demand Side
+
+- @YouZhang2009 — supply side: information is *hard to process*.
+- Us — demand side: information is *not looked at*.
+- Same mechanism: gradual information diffusion [@HongStein1999].
+- @DRT2015 show more EDGAR access around earnings speeds price discovery and
+  shrinks the drift. We bring this to the **10-K filing** event.
+
+\vskip 0.3em
+**Hypothesis:** the drift (FDR's power to predict future returns) is stronger
+when attention is low — i.e. the coefficient on $FDR \times LOWATT > 0$.
+
+## Data & Sample
+
+- **Filings:** EDGAR 10-K metadata (TRR266 server), 2003–2017.
+- **Returns/fundamentals:** CRSP & Compustat via WRDS.
+- **Attention:** non-robot EDGAR downloads (Notre Dame server logs;
+  robot filtering per @LM2017), 2003–2015.
 
 ```{python}
 #| output: asis
-first_year, last_year = highlights["year_range"].split("–")
 print(
-    f"- EDGAR 10-K dataset (TRR266 server), accessed via DuckDB over HTTPS\n"
-    f"- Filters: $\\geq$ 3,000 words, successful download, one per firm per year\n"
-    f"- {highlights['sample_size']:,} firm-year observations from "
-    f"{highlights['n_firms']:,} firms, {highlights['year_range']}"
+    f"- Final analysis sample: **{uni['n']:,}** filings "
+    f"(market cap $\\geq\\$200$m).\\\n"
+    f"- With usable attention-log coverage: **{lo['n']+hi['n']:,}** filings."
 )
 ```
 
-## 10-K Word Count over Time
+## Key Variables
+
+- **FDR** — size-adjusted return over the 3 trading days $[0,+2]$ from filing
+  (CRSP cap-based decile benchmark).
+- **BHAR$_{12m}$** — size-adjusted 12-month buy-and-hold return, starting the
+  month after the filing window (delisting-adjusted).
+- **Attention** — non-robot EDGAR downloads in $[\text{filing},+4]$ days,
+  **size- and year-adjusted** (residual of $\log$ downloads on SIZE per year);
+  $LOWATT=1$ below the annual median.
+
+\vskip 0.3em
+Using *abnormal* attention avoids simply sorting on firm size and calendar year.
+
+## Result 1: The Drift Exists — but is Weak
 
 ```{python}
-(
-    make_length_figure(annual_data)
-    + theme_minimal(base_size=8)
-    + theme(figure_size=(7, 3.5))
-).draw()
+#| output: asis
+print(
+    f"12-month BHAR regressed on FDR (+ controls, year/industry FE, "
+    f"SE clustered by year):\n\n"
+    f"- Univariate: FDR $= {cell(uni['table'],'fdr','coef'):.3f}$ "
+    f"($t={cell(uni['table'],'fdr','t'):.2f}$) — significant.\n"
+    f"- With full controls: FDR $= {cell(full['table'],'fdr','coef'):.3f}$ "
+    f"($t={cell(full['table'],'fdr','t'):.2f}$, "
+    f"$p={cell(full['table'],'fdr','p'):.3f}$) — only marginal.\n"
+    f"- Hedge spread (top$-$bottom FDR quintile): "
+    f"{quint['spread_pct']:.1f}\\% ($t={quint['spread_t']:.1f}$)."
+)
 ```
+
+\vskip 0.3em
+Consistent with a **weaker post-2005 drift** [@McLeanPontiff2016].
+
+## Result 2: Attention Does *Not* Moderate the Drift
+
+```{python}
+#| output: asis
+print(
+    f"Interaction model, BHAR$_{{12m}} \\sim FDR \\times LOWATT$ "
+    f"(+ $FDR\\times SIZE$, controls, FE):\n\n"
+    f"- $FDR \\times LOWATT = {cell(intr,'fdr_lowatt','coef'):.3f}$ "
+    f"($t={cell(intr,'fdr_lowatt','t'):.2f}$, "
+    f"$p={cell(intr,'fdr_lowatt','p'):.2f}$) — **not significant**.\n\n"
+    f"Split sample (FDR coefficient by group):\n\n"
+    f"- Low attention  ($N={lo['n']:,}$): "
+    f"{cell(lo['table'],'fdr','coef'):.3f} "
+    f"($t={cell(lo['table'],'fdr','t'):.2f}$)\n"
+    f"- High attention ($N={hi['n']:,}$): "
+    f"{cell(hi['table'],'fdr','coef'):.3f} "
+    f"($t={cell(hi['table'],'fdr','t'):.2f}$)"
+)
+```
+
+\vskip 0.3em
+The FDR–drift relation is **essentially identical** across attention groups.
+Our hypothesis is **not supported**.
+
+## Why the Null?
+
+- **Sample composition:** the CRSP match and the \$200m screen leave large,
+  visible firms — exactly those for which attention is rarely scarce.
+- **Little drift to moderate:** the average drift is already weak, so there is
+  limited predictability for attention to amplify.
+- **Post-publication decay:** anomalies fade after they are documented
+  [@McLeanPontiff2016].
+
+\vskip 0.3em
+The null is *consistent* with the rest of our evidence, not at odds with it.
+
+## Limitations
+
+- Attention measure mixes retail and institutional downloads (not separable
+  in the public logs).
+- Median split discards information; the effect, if any, might sit only among
+  the most-ignored filings.
+- Sample restricted to larger firms — limited variation in attention scarcity.
+- Weak underlying drift limits statistical power.
 
 ## Conclusion
 
-```{python}
-#| output: asis
-change = highlights["median_words_last"] - highlights["median_words_first"]
-pct = round(100 * change / highlights["median_words_first"])
-first_year, last_year = highlights["year_range"].split("–")
-print(
-    f"- Median word count: {highlights['median_words_first']:,} words ({first_year}) "
-    f"$\\to$ {highlights['median_words_last']:,} words ({last_year})\n"
-    f"- Increase of approximately {pct}\\%"
-)
-```
-
-- The time trend of @DLS2017 continues beyond their sample period
+- We test a plausible demand-side explanation for the post-10-K drift with a
+  **direct** attention measure (EDGAR downloads).
+- **Finding:** for this drift, in 2003–2015, with this measure, attention does
+  **not** moderate the drift — a clean null result.
+- Contribution is methodological honesty: direct measure, abnormal-attention
+  construction, size-confound control, and a transparent null.
 
 ## References
 
 ::: {#refs}
 :::
-
