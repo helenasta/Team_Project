@@ -22,3 +22,11 @@ __pycache__/
 
 # output folder
 output/
+# raw external data - never commit
+data/external/
+# transfer archives - never commit
+*.tar
+*.tar.gz
+*.zip
+nd_logs_by_year/
+ziPSVg1N

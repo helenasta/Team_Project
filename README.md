@@ -11,67 +11,112 @@ investor attention with **non-robot EDGAR downloads** in the filing window
 (Notre Dame SRAF server-log data, following Loughran & McDonald 2017 and Drake,
 Roulstone & Thornock 2015).
 
-Sample period: **2003–2017** for the drift analysis (bounded by the TRR266 10-K
-data and the EDGAR server-log window), narrowing to **2003–2015** for the
-attention analysis (the limit of the Notre Dame compressed log series).
+Sample period: **2003 to 2015** for the drift analysis (bounded by the TRR266
+10-K data), narrowing to **2003 to 2015** for the attention analysis (the limit
+of the Notre Dame log series).
 
-## Pipeline — two phases
+The active branch for this project is **`python`**.
 
-The project runs in two phases because one step requires WRDS, which needs
-two-factor authentication and therefore cannot run inside Codespaces.
+## Repository and data
 
-### Phase 1 — local (automated by `make`)
+The code lives in this repository. The data are **not** committed, for two
+reasons: the WRDS-derived files contain licensed CRSP/Compustat data, and the
+Notre Dame logs are large. The data are provided separately on HU-Box.
 
-```text
-pull_data.py              TRR266 EDGAR 10-K metadata  -> data/pulled/edgar_10k_metadata.parquet
-prep_data.py              clean + merge + screens     -> data/generated/prepared_data.parquet
-prep_attention_windows.py attention windows bridge    -> data/generated/attention_windows.parquet
-run_analysis.py           drift regression (Table 3)  -> output/analysis_results.pkl
-doc/presentation.qmd      reads the results bundle     -> output/presentation.pdf
+### HU-Box data folders
+
+- `data_pulled/` — the contents of `data/pulled/` (TRR266 metadata + the
+  WRDS-derived files): https://box.hu-berlin.de/d/687bcc46f54e420d8ce2/
+- `nd_logs/` — the Notre Dame EDGAR server logs, one archive per year
+  (`nd_logs_2003.tar.gz` … `nd_logs_2015.tar.gz`):
+  https://box.hu-berlin.de/d/005fb213d90f46fdae94/
+- `output/` — the results bundle `analysis_results.pkl`:
+  https://box.hu-berlin.de/d/46161726b7614d4f87f5/
+
+The files in `data_pulled/` contain licensed CRSP/Compustat data.
+
+## How to reproduce
+
+### 1. Clone the repository (branch `python`)
+
+```bash
+git clone -b python <repo-url>
+cd Team_Project
 ```
 
-Run the whole local phase with:
+### 2. Download the data from HU-Box and place it
+
+- Put every file from the HU-Box `data_pulled/` folder into `data/pulled/`.
+- Put `analysis_results.pkl` from the HU-Box `output/` folder into `output/`.
+- Put the yearly log archives into `data/external/` and extract them:
+
+```bash
+mkdir -p data/external/nd_logs
+# place nd_logs_2003.tar.gz … nd_logs_2015.tar.gz in data/external/ first, then:
+cd data/external
+for f in nd_logs_*.tar.gz; do tar -xzf "$f"; done
+cd ../..
+```
+
+This should create `data/external/nd_logs/` with yearly subfolders
+(`2003/QTR1/f_YYYYMMDD.csv`, …).
+
+### 3. Run the pipeline
 
 ```bash
 make
 ```
 
+This runs the local phase end to end (prepare data, build the attention windows,
+run the analyses, render the presentation to `output/presentation.pdf`).
+
+## Pipeline — two phases
+
+The project runs in two phases because one step requires WRDS, which needs
+two-factor authentication and cannot run inside Codespaces.
+
+### Phase 1 — local (automated by `make`)
+
+```text
+pull_data.py               TRR266 EDGAR 10-K metadata   -> data/pulled/edgar_10k_metadata.parquet
+prep_data.py               clean + merge + screens      -> data/generated/prepared_data.parquet
+prep_attention_windows.py  attention windows bridge     -> data/generated/attention_windows.parquet
+build_attention.py         count downloads per filing   -> data/pulled/attention_downloads.parquet
+run_analysis.py            drift regression             -> output/analysis_results.pkl
+analysis_attention.py      attention interaction model  -> output/analysis_results.pkl (appended)
+doc/presentation.qmd       reads the results bundle     -> output/presentation.pdf
+```
+
 ### Phase 2 — WRDS (run once, manually, on the WRDS JupyterHub)
 
 CRSP/Compustat are licensed and reachable only through WRDS with 2FA. We run the
-WRDS-dependent step on the **WRDS JupyterHub**, where the database connection
-needs no per-call 2FA, then download the small results back into `data/pulled/`.
-
-Steps:
+WRDS-dependent scripts on the **WRDS JupyterHub**, where the connection needs no
+per-call 2FA, then download the results into `data/pulled/`. The provided
+HU-Box `data_pulled/` folder already contains these outputs, so Phase 2 only
+needs to be repeated to regenerate them from scratch.
 
 1. Locally, generate the upload inputs:
-```bash
-   make wrds-inputs
-```
-   This writes `data/pulled/wrds_link_input.csv` and `wrds_reportdate.csv`.
-2. Log in to the **WRDS JupyterHub** (Duo 2FA once). Upload those two CSVs and
-   the three WRDS scripts: `wrds_link.py`, `wrds_returns.py`, `wrds_controls.py`.
-3. In the JupyterHub terminal run, in order:
-```bash
-   python wrds_link.py        # CIK -> PERMNO link        -> wrds_link_output.csv
-   python wrds_returns.py     # FDR + 12-month BHAR        -> wrds_returns.parquet
-   python wrds_controls.py    # mktcap, BM, beta, momentum -> wrds_controls.parquet
-```
-4. Download those three outputs back into `data/pulled/`.
 
-After Phase 2 has been done once, Phase 1 (`make`) runs end to end.
+```bash
+make wrds-inputs
+```
+
+2. Log in to the WRDS JupyterHub (Duo 2FA once). Upload the input CSVs and the
+   WRDS scripts (`wrds_link.py`, `wrds_returns.py`, `wrds_controls.py`,
+   `wrds_volume.py`, `wrds_cumret.py`, `wrds_ticker_pull.py`).
+3. Run them in the JupyterHub terminal, then download their outputs back into
+   `data/pulled/`.
 
 ## Data folders
 
-- `data/pulled/` — raw inputs. TRR266 metadata + the licensed WRDS-derived files.
-  **Not committed** (license + size); see `.gitignore`.
-- `data/generated/` — prepared datasets built from the above. Not committed.
-- `output/` — the serialized results bundle and the rendered presentation.
+- `data/pulled/` — raw inputs (TRR266 metadata + WRDS-derived files). Not committed.
+- `data/external/nd_logs/` — Notre Dame server logs. Not committed.
+- `data/generated/` — prepared datasets built locally by `make`. Not committed.
+- `output/` — the results bundle, figures, and the rendered presentation.
 
-Because CRSP/Compustat are licensed, the WRDS-derived files cannot be shared in
-the repository. Reproducibility is therefore **conditional on WRDS access**: the
-scripts document exactly which tables, fields, and filters are used, which is the
-reproducible part. Anyone with WRDS access can regenerate the pulls via Phase 2.
+Reproducibility is **conditional on data access**: the code fully documents which
+WRDS tables, fields, and filters are used, and the derived data are provided on
+HU-Box for graders with the appropriate access.
 
 ## Key variable definitions
 
@@ -79,18 +124,30 @@ reproducible part. Anyone with WRDS access can regenerate the pulls via Phase 2.
   date; size adjustment uses CRSP cap-based decile portfolios (`crsp.ermport1`).
 - **BHAR_12M** — size-adjusted buy-and-hold return over the 12 months starting the
   month after the filing window; delisting returns spliced in.
+- **LOWATT** — non-robot EDGAR downloads in `[filingDate, +4]` calendar days,
+  size- and year-adjusted (residual on SIZE per year); `LOWATT=1` below the
+  annual median.
 - **COMPLEX** — annual median split of `filing_word_count` on the final sample.
-- **Attention (planned)** — non-robot EDGAR downloads in `[filingDate, +4]`
-  calendar days, size-adjusted, annual median split into a `LOWATT` indicator.
+- **Controls** — beta, size, book-to-market, momentum.
 
-## Current status
+## Results
 
-- Phase 1 and Phase 2 complete; final analysis sample = **23,135** filings.
-- Drift (Table 3): FDR coefficient positive; significant univariately, marginal
-  (p≈0.06) with full controls — consistent with a weaker post-2005 drift.
-- Attention measure: **pending** the Notre Dame log data (access requested). The
-  bridge in `attention_windows.parquet` flags **17,213** filings as usable once
-  the logs arrive.
+- Final drift sample: **23,135** filings; attention sample: **17,213**.
+- **Drift exists but is weak:** FDR positive, significant univariately, marginal
+  with full controls (t ≈ 1.9), roughly a third of You & Zhang's magnitude
+  (consistent with post-publication decay, McLean & Pontiff 2016).
+- **Attention does not moderate the drift:** the FDR × LOWATT interaction is
+  effectively zero (t ≈ -0.16), and the FDR coefficient is nearly identical in
+  the low- and high-attention subsamples. A clean null result.
+- **Validation:** a ticker cross-check confirms **93.4%** of a random sample of
+  matched filings, supporting the CIK-PERMNO match.
+
+## Validation and robustness
+
+- `ticker_crosscheck.py` — independent CIK-PERMNO check against CRSP tickers.
+- `plot_volume.py` — trading volume around the filing (You & Zhang Fig. 1).
+- `plot_fig4.py` — cumulative returns by FDR quintile (You & Zhang Fig. 4).
+- `plot_coefficients.py` — coefficient plots with confidence intervals.
 
 ## References
 
