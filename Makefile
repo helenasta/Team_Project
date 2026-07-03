@@ -42,8 +42,8 @@ figures: output/analysis_results.pkl
 	-uv run python code/python/ticker_crosscheck.py
 	-uv run python code/python/plot_volume.py
 	-uv run python code/python/plot_coefficients.py
-	-uv run python code/python/plot_fig4.py
 	-uv run python code/python/plot_ticker_check.py
+	-uv run python code/python/plot_att_size_corr.py
 
 # ---- presentation --------------------------------------------------------
 output/presentation.pdf: doc/presentation.qmd output/analysis_results.pkl data/generated/attention_windows.parquet figures

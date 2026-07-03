@@ -105,6 +105,16 @@ $$
 2. **Confound control**: attention and size are correlated; adjusting first separates the two. The FDR × SIZE term is a second guard.
 3. **Comparability over time**: raw downloads grow as EDGAR usage rises.
 
+## Attention and Size Are Correlated
+
+\begin{center}
+\includegraphics[width=0.72\textwidth]{../output/att_size_corr.png}
+\end{center}
+
+\footnotesize Larger firms attract more downloads (r = 0.33). The correlation is
+moderate: size explains part of attention but not all, so we remove the size
+component and keep the rest as abnormal attention.
+
 ## Trading Volume around the Filing
 
 \begin{center}
