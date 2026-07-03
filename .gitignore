@@ -30,3 +30,9 @@ data/external/
 *.zip
 nd_logs_by_year/
 ziPSVg1N
+
+# local data-transfer artifacts (uploaded to HU-Box, not into git)
+nd_logs_by_year/
+pulled_data.zip
+*.tar.gz
+ziPSVg1N
