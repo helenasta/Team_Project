@@ -53,7 +53,6 @@ mkdir -p data/pulled data/external data/generated output
 ### 3. Download the data from HU-Box and place it
 
 - Put every file from the HU-Box `data_pulled/` folder into `data/pulled/`.
-- Put `analysis_results.pkl` from the HU-Box `output/` folder into `output/`.
 - Put the yearly log archives into `data/external/` and extract them:
 
 ```bash
@@ -72,6 +71,11 @@ This should create `data/external/nd_logs/` with yearly subfolders
 ```bash
 make
 ```
+
+> **Optional shortcut:** the pipeline recreates `output/analysis_results.pkl`
+> itself. If you only want to view the presentation without running the full
+> pipeline (which needs the Notre Dame logs), copy `analysis_results.pkl`
+> from the HU-Box `output/` folder into `output/` and render the slides directly.
 
 This runs the local phase end to end (prepare data, build the attention windows,
 run the analyses, render the presentation to `output/presentation.pdf`).
