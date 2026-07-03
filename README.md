@@ -53,14 +53,10 @@ mkdir -p data/pulled data/external data/generated output
 ### 3. Download the data from HU-Box and place it
 
 - Put every file from the HU-Box `data_pulled/` folder into `data/pulled/`.
-- Put the yearly log archives into `data/external/` and extract them:
+- Put the yearly log archives into `data/external/nd_logs/` and extract them:
 
 ```bash
-mkdir -p data/external/nd_logs
-# place nd_logs_2003.tar.gz … nd_logs_2015.tar.gz in data/external/ first, then:
-cd data/external
-for f in nd_logs_*.tar.gz; do tar -xzf "$f"; done
-cd ../..
+cd /workspaces/Team_Project/data/external/nd_logs && for f in nd_logs_*.tar.gz; do tar -xzf "$f"; done && cd /workspaces/Team_Project
 ```
 
 This should create `data/external/nd_logs/` with yearly subfolders
