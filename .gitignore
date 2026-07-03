@@ -36,3 +36,8 @@ nd_logs_by_year/
 pulled_data.zip
 *.tar.gz
 ziPSVg1N
+
+# keep the (otherwise ignored) data folders present in the repo
+!data/pulled/.gitkeep
+!data/generated/.gitkeep
+!data/external/.gitkeep

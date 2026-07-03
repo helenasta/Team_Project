@@ -44,7 +44,13 @@ git clone -b python <repo-url>
 cd Team_Project
 ```
 
-### 2. Download the data from HU-Box and place it
+### 2. Create the data folders (if starting from a fresh checkout)
+
+```bash
+mkdir -p data/pulled data/external data/generated output
+```
+
+### 3. Download the data from HU-Box and place it
 
 - Put every file from the HU-Box `data_pulled/` folder into `data/pulled/`.
 - Put `analysis_results.pkl` from the HU-Box `output/` folder into `output/`.
@@ -61,7 +67,7 @@ cd ../..
 This should create `data/external/nd_logs/` with yearly subfolders
 (`2003/QTR1/f_YYYYMMDD.csv`, …).
 
-### 3. Run the pipeline
+### 4. Run the pipeline
 
 ```bash
 make
